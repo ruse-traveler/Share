@@ -2,7 +2,7 @@
 
 ### Contact
 
-Derek Anderson (github.com/ruse-traveler)
+Derek Anderson ([ruse-traveler](https://github.com/ruse-traveler))
 
 ### Description:
 
