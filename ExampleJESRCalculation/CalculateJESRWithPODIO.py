@@ -14,6 +14,7 @@
 from array import array
 from podio.reading import get_reader
 
+import ROOT
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,13 +25,12 @@ def Calculate(input_file="root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.06.
     # use podio reader to open example EICrecon output
     reader = get_reader(input_file)
 
+    # create histogram for extracting JES/R
+    hres = ROOT.TH1D("hEneResPODIO", ";(E_{jet}^{rec} - E_{jet}^{gen}) / E_{jet}^{gen}", 50, -2., 3.)
+    hres.Sumw2()
+
     # now loop through all events in output
     for iframe, frame in enumerate(reader.get("events")):
-
-        # TEST
-        print(f"This is event {iframe}")
-        if iframe >= 100:
-            break
 
         # grab collection of jets
         # available options:
@@ -44,31 +44,27 @@ def Calculate(input_file="root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.06.
         rec_jets = frame.get("ReconstructedChargedJets")
 
         # loop through generated jets
-        igen = 0
         for gjet in gen_jets:
-
-            # TEST
-            print(f"  This is gen jet {igen}")
-            print(f"    energy = {gjet.getEnergy()}")
-            igen = igen + 1
 
             # calculate pseudorapidity, azimuth
             gpt = np.sqrt((gjet.getMomentum().x**2) + (gjet.getMomentum().y**2))
             gphi = np.arctan2(gjet.getMomentum().y, gjet.getMomentum().x)
             gtheta = np.arctan2(gpt, gjet.getMomentum().z)
             geta = -np.log(np.tan(gtheta))/2
-            print(f"    eta = {geta}, phi = {gphi}")
 
             # FIXME some eta's are NaNs...
             if np.isnan(geta):
-                print(f"      ---> Gen NAN!") # TEST
+                continue
+
+            # select only jets w/ pt > 5 (jet
+            # reco below this gets tricky)
+            if gjet.getEnergy() < 5:
                 continue
 
             # select only jets in |eta_max| - R =
             # 3.5 - 1 = 2.5 (to avoid jets cut off
             # by acceptance)
             if np.abs(geta) > 2.5:
-                print(f"      ---> Out of acceptance!") # TEST
                 continue 
 
             # filter out generated jets with electrons
@@ -77,31 +73,25 @@ def Calculate(input_file="root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.06.
             for gcst in gjet.getParticles():
                 if gcst.getPDG() == 11:
                     has_electron = True
-                    print(f"      ---> has electron!") # TEST
-                    continue
+                    break
+
+            if has_electron:
+                continue
 
             # loop through reconstructed jets to find closest
             # one in eta-phi space
-            irec = 0
             match = None
             min_dist = 9999.
             for rjet in rec_jets:
-
-                # TEST
-                print(f"      This is reco jet {irec}")
-                print(f"        energy = {rjet.getEnergy()}")
-                irec = irec + 1
 
                 # calculate pseudorapidity, azimuth
                 rpt = np.sqrt((rjet.getMomentum().x**2) + (rjet.getMomentum().y**2))
                 rphi = np.arctan2(rjet.getMomentum().y, rjet.getMomentum().x)
                 rtheta = np.arctan2(rpt, rjet.getMomentum().z)
                 reta = -np.log(np.tan(rtheta))/2
-                print(f"    eta = {reta}, phi = {rphi}")
 
                 # FIXME some eta's are NaNs...
                 if np.isnan(geta):
-                    print(f"        ---> Rec NAN!") # TEST
                     continue
 
                 # calculate distance in eta-phi space between
@@ -110,17 +100,37 @@ def Calculate(input_file="root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.06.
                 dphi = rphi - gphi
                 dist = np.sqrt((deta**2) + (dphi**2))
 
+                # if distance is outside tolerance, continue
+                if dist > 0.05:
+                    continue
+
                 # if reco jet is closest so far, set as match
                 if dist < min_dist:
                     match = rjet
                     min_dist = dist
 
-
             # if no match found, continue 
             if match is None:
                 continue
 
-            # otherwise calculate ratios
-            # TODO
+            # otherwise calculate %-difference 
+            eres = (match.getEnergy() - gjet.getEnergy())/gjet.getEnergy()
+            hres.Fill(eres)
+
+    # extract JES/R
+    fres = ROOT.TF1("fEneRes", "gaus(0)", -0.5, 0.5)
+    fres.SetParameter(0, hres.Integral())
+    fres.SetParameter(1, hres.GetMean())
+    fres.SetParameter(2, hres.GetRMS())
+    hres.Fit(fres, "r")
+    JES = fres.GetParameter(1) + 1
+    JER = fres.GetParameter(2)
+
+    # save histogram + fit for reference
+    with ROOT.TFile("test_podio.root", "recreate") as ofile:
+        ofile.WriteObject(hres, "hEneResPODIO")
+        ofile.Close()
+
+    return (JES, JER)
 
 # end =========================================================================
