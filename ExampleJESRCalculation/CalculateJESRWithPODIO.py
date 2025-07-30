@@ -11,12 +11,10 @@
 #
 # =============================================================================
 
-from array import array
 from podio.reading import get_reader
 
 import ROOT
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 
