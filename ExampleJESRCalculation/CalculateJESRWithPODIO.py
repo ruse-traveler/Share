@@ -48,11 +48,7 @@ def Calculate(input_file="root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.06.
             gpt = np.sqrt((gjet.getMomentum().x**2) + (gjet.getMomentum().y**2))
             gphi = np.arctan2(gjet.getMomentum().y, gjet.getMomentum().x)
             gtheta = np.arctan2(gpt, gjet.getMomentum().z)
-            geta = -np.log(np.tan(gtheta))/2
-
-            # FIXME some eta's are NaNs...
-            if np.isnan(geta):
-                continue
+            geta = -np.log(np.tan(gtheta/2))
 
             # select only jets w/ pt > 5 (jet
             # reco below this gets tricky)
@@ -86,11 +82,7 @@ def Calculate(input_file="root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.06.
                 rpt = np.sqrt((rjet.getMomentum().x**2) + (rjet.getMomentum().y**2))
                 rphi = np.arctan2(rjet.getMomentum().y, rjet.getMomentum().x)
                 rtheta = np.arctan2(rpt, rjet.getMomentum().z)
-                reta = -np.log(np.tan(rtheta))/2
-
-                # FIXME some eta's are NaNs...
-                if np.isnan(geta):
-                    continue
+                reta = -np.log(np.tan(rtheta/2))
 
                 # calculate distance in eta-phi space between
                 # gen & reco jets
