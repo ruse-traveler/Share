@@ -11,7 +11,7 @@ Derek Anderson (building on work by Brian Page)
 
 ### Description
 This set of python scripts illustrates how to calculate
-the charged jet JES/R.
+the charged jet JES/R from the output of EICrecon.
 
 Currently, the only example here makes use of the PODIO
 interface, so it's recommended to run this in the eic-
